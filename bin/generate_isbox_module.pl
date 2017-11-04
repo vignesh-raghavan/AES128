@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
 
-open(CRC, "<rv3isbox");
+open(CRC, "<logicfriday_isbox");
 @c = <CRC>;
 chomp(@c);
 close(CRC);
