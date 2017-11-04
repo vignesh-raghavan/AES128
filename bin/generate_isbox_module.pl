@@ -36,6 +36,7 @@ $k = 7;
 foreach $cc(@c)
 {
 	$cc =~ s/^.*?= //;
+	next if($cc =~ m/^ *$/);
 	$cc = lc($cc);
 	
 	@m = split(/ *\+ */, $cc);
