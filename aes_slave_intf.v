@@ -17,14 +17,17 @@ module aes_slave_intf (
 );
 
 reg [127:0] plain_text;
-reg [127:0] cipher_text;
+wire [127:0] cipher_text;
+
+reg [31:0] aes_control;
 
 wire plain_text_write;
 reg plain_text_complete;
+wire aes_control_write;
 
 reg [1:0] icounter;
 
-reg [7:0] isbox_mem[0:255]; //SBOX Inverse
+//reg [7:0] isbox_mem[0:255]; //SBOX Inverse
 
 reg [3:0] ecounter;
 reg [3:0] ecounter_next;
@@ -35,16 +38,19 @@ reg [3:0] round;
 wire [127:0] o_text;
 wire [127:0] Rkey;
 
-//Initial statements.
-initial begin
-	$readmemh("ISBOX.hex", isbox_mem);
-end
+////Initial statements.
+//initial begin
+//	$readmemh("ISBOX.hex", isbox_mem);
+//end
 
 
 
 
 //Continous Assignment statements.
 assign plain_text_write = chipselect & write & (address == 11'h0);
+assign aes_control_write = chipselect & write & (address == 11'h8);
+
+
 
 
 always @(posedge clock) begin
@@ -94,7 +100,7 @@ always @(posedge clock) begin
 	end
 end
 
-
+//Multiple rounds - 10 for 128bit encryption.
 always @(ecounter or plain_text_complete or plain_text or o_text or Rkey) begin
 	ecounter_next = ecounter; //Keep the same state.
 	enable = 1'b0;
@@ -106,7 +112,7 @@ always @(ecounter or plain_text_complete or plain_text or o_text or Rkey) begin
 			ecounter_next = 4'h1;
 			enable = 1'b1;
 			round = 4'h0;
-			i_text = plain_text ^ Rkey; //First Addroundkey for Encryption.
+			i_text = plain_text ^ Rkey; //First Addroundkey for Encryption. //XOR Initialization Vector here..
 		end
 	end
 	else begin
@@ -117,7 +123,7 @@ always @(ecounter or plain_text_complete or plain_text or o_text or Rkey) begin
 	end
 end
 
-
+//Compute AES cipher for one round.
 aes aes0 (
 	.clock(clock),
 	.resetn(resetn),
@@ -135,14 +141,15 @@ aes aes0 (
 
 always @(posedge clock) begin
 	if(!resetn) begin
-		cipher_text <= 128'h0;
+		aes_control <= 32'h1;
 	end
-	else if((ecounter==4'hA)) begin
-		cipher_text <= o_text;
+	else if(aes_control_write) begin
+		aes_control <= writedata;
 	end
 end
 
 
+assign cipher_text = (ecounter==4'hA) ? o_text : cipher_text;
 
 
 
@@ -152,16 +159,16 @@ always @(cipher_text or chipselect or read or address) begin
 
 	if(chipselect & read) begin
 		case(address)
-		11'h1 : begin
+		11'h4 : begin
 					readdata = cipher_text[127:96];
 				  end
-		11'h2 : begin
+		11'h5 : begin
 					readdata = cipher_text[95:64];
 				  end
-		11'h3 : begin
+		11'h6 : begin
 					readdata = cipher_text[63:32];
 				  end
-		11'h4 : begin
+		11'h7 : begin
 					readdata = cipher_text[31:0];
 				  end
 		endcase

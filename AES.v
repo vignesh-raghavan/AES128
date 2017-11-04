@@ -40,6 +40,10 @@ always @(posedge clock) begin
 		o_text <= 128'h0;
 		Rkey <= 128'h0f0e0d0c0b0a09080706050403020100;
 	end
+	else if(enable & (round == 4'h9)) begin
+		o_text <= roundkey_text;
+		Rkey <= 128'h0f0e0d0c0b0a09080706050403020100;
+	end
 	else if(enable) begin
 		o_text <= roundkey_text;
 		Rkey <= okey;
