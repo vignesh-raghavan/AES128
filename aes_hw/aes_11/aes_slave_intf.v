@@ -1,33 +1,63 @@
-`define SEQ_CONNECT(clock, resetn, ctr, ctr_next, iren, enable, i_text, key, iempty, fifo_text, Rkey, done, ofull, keyini) \
+`define SEQ_CONNECT(clock, resetn, ctr, ctr_next, iren, enable, i_text, key, iempty, fifo_text, Rkey, done, ofull, keyini, t_text) \
 	always @(posedge clock) begin \
 		if(!resetn) begin \
-			ctr <= 1'b0; \
+			ctr <= 2'h0; \
+			t_text <= 128'h0; \
 		end \
 		else begin \
 			ctr <= ctr_next; \
+			t_text <= i_text; \
 		end \
 	end \
-	always @(ctr or iempty or fifo_text or Rkey or done or ofull) begin \
-		iren = 1'b0; \
-		ctr_next = ctr; \
-		if((ctr == 1'b0)) begin \
+	always @(ctr or iempty or fifo_text or Rkey or done or ofull or t_text) begin \
+		//iren = 1'b0; \
+		//ctr_next = ctr; \
+		if((ctr == 2'h0)) begin \
 			if(~iempty) begin \
 				enable = 1'b1; \
 				i_text = fifo_text; \
 				key = Rkey; \
-				ctr_next = 1'b1; \
+				ctr_next = 2'h1; \
 				iren = 1'b1; \
 			end \
 			else begin \
+				enable = 1'b0; \
 				i_text = 128'h0; \
 				key = keyini; \
-				enable = 1'b0; \
+				ctr_next = ctr; \
+				iren = 1'b0; \
 			end \
 		end \
-		else if((ctr == 1'b1)) begin \
-			if(done & ~(ofull)) begin \
+		else if((ctr == 2'h1)) begin \
+			if(done) begin \
 				enable = 1'b0; \
-				ctr_next = 1'b0; \
+				i_text = t_text; \
+				key = Rkey; \
+				ctr_next = 2'h2; \
+				iren = 1'b0; \
+			end \
+			else begin \
+				enable = 1'b0; \
+				i_text = t_text; \
+				key = Rkey; \
+				ctr_next = ctr; \
+				iren = 1'b0; \
+			end \
+		end \
+		else begin \
+			if(~ofull) begin \
+				enable = 1'b0; \
+				i_text = t_text; \
+				key = Rkey; \
+				ctr_next = 2'h0; \
+				iren = 1'b0; \
+			end \
+			else begin \
+				enable = 1'b0; \
+				i_text = t_text; \
+				key = Rkey; \
+				ctr_next = ctr; \
+				iren = 1'b0; \
 			end \
 		end \
 	end
@@ -49,7 +79,7 @@ module aes_slave_intf (
 	input chipselect1,
 	input [3:0] address1,
 	input read,
-	output reg [31:0] readdata,
+	output [31:0] readdata,
 	output waitrequest1
 );
 
@@ -62,35 +92,35 @@ assign Rkey = 128'h0f0e0d0c0b0a09080706050403020100;
 
 reg [1:0] icounter;
 
-reg ctr0;
-reg ctr0_next;
+reg [1:0] ctr0;
+reg [1:0] ctr0_next;
 
-reg ctr1;
-reg ctr1_next;
+reg [1:0] ctr1;
+reg [1:0] ctr1_next;
 
-reg ctr2;
-reg ctr2_next;
+reg [1:0] ctr2;
+reg [1:0] ctr2_next;
 
-reg ctr3;
-reg ctr3_next;
+reg [1:0] ctr3;
+reg [1:0] ctr3_next;
 
-reg ctr4;
-reg ctr4_next;
+reg [1:0] ctr4;
+reg [1:0] ctr4_next;
 
-reg ctr5;
-reg ctr5_next;
+reg [1:0] ctr5;
+reg [1:0] ctr5_next;
 
-reg ctr6;
-reg ctr6_next;
+reg [1:0] ctr6;
+reg [1:0] ctr6_next;
 
-reg ctr7;
-reg ctr7_next;
+reg [1:0] ctr7;
+reg [1:0] ctr7_next;
 
-reg ctr8;
-reg ctr8_next;
+reg [1:0] ctr8;
+reg [1:0] ctr8_next;
 
-reg ctr9;
-reg ctr9_next;
+reg [1:0] ctr9;
+reg [1:0] ctr9_next;
 
 
 // AES signals for 10 rounds
@@ -253,21 +283,34 @@ always @(posedge clock) begin
 	end
 end
 
+reg [127:0] temp_wdata;
+always @(posedge clock) begin
+	if(!resetn) begin
+		temp_wdata <= 128'h0;
+	end
+	else begin
+		temp_wdata <= to_ififo;
+	end
+end
 
 
-always @(icounter or plain_text_write or writedata) begin
+
+always @(icounter or plain_text_write or writedata or temp_wdata or Rkey) begin
 
 	if((icounter == 2'h0)) begin
-		to_ififo = {writedata ^ Rkey[127:96], 96'h0};
+		to_ififo = {temp_wdata[95:0], writedata ^ Rkey[127:96]};
 	end
 	else if((icounter == 2'h1) & plain_text_write) begin
-		to_ififo[95:64] = writedata ^ Rkey[95:64];
+		to_ififo = {temp_wdata[95:0], writedata ^ Rkey[95:64]};
 	end
 	else if((icounter == 2'h2) & plain_text_write) begin
-		to_ififo[63:32] = writedata ^ Rkey[63:32];
+		to_ififo = {temp_wdata[95:0], writedata ^ Rkey[63:32]};
 	end
 	else if((icounter == 2'h3) & plain_text_write) begin
-		to_ififo[31:0] = writedata ^ Rkey[31:0];
+		to_ififo = {temp_wdata[95:0], writedata ^ Rkey[31:0]};
+	end
+	else begin
+		to_ififo = temp_wdata;
 	end
 
 end
@@ -280,43 +323,74 @@ assign waitrequest = (icounter == 2'h3) & plain_text_write & ifull;
 
 synch_fifo IFIFO(.clock(clock), .resetn(resetn), .wen(iwen), .ren(iren), .wdata(to_ififo), .rdata(plain_text), .full(ifull), .empty(iempty));
  
+reg [127:0] t_text0;
+reg [127:0] t_text1;
+reg [127:0] t_text2;
+reg [127:0] t_text3;
+reg [127:0] t_text4;
+reg [127:0] t_text5;
+reg [127:0] t_text6;
+reg [127:0] t_text7;
+reg [127:0] t_text8;
+reg [127:0] t_text9;
 
-always @(posedge clock) begin
-	if(!resetn) begin
-		ctr0 <= 1'b0;
-	end
-	else begin
-		ctr0 <= ctr0_next;
-	end
-end
-
-always @(ctr0 or iempty or plain_text or Rkey0 or done0 or ofull0) begin
-
-	iren = 1'b0;
-	ctr0_next = ctr0;
-
-	if((ctr0 == 1'b0)) begin
-		if(~iempty) begin
-			enable0 = 1'b1;
-			i_text0 = plain_text;// ^ 128'h0f0e0d0c0b0a09080706050403020100;
-			key0 = Rkey;
-			ctr0_next = 1'b1;
-			iren = 1'b1;
-		end
-		else begin
-			i_text0 = 128'h0;
-			key0 = Rkey;
-			enable0 = 1'b0;
-		end
-	end
-	else if((ctr0 == 1'b1)) begin
-		if(done0 & ~(ofull0)) begin
-			enable0 = 1'b0;
-			ctr0_next = 1'b0;
-		end
-	end
-
-end
+//always @(posedge clock) begin
+//	if(!resetn) begin
+//		t_text0 <= 128'h0;
+//	end
+//	else begin
+//		t_text0 <= i_text0;
+//	end
+//end
+//
+//always @(posedge clock) begin
+//	if(!resetn) begin
+//		ctr0 <= 1'b0;
+//	end
+//	else begin
+//		ctr0 <= ctr0_next;
+//	end
+//end
+//
+//always @(ctr0 or iempty or plain_text or Rkey0 or done0 or ofull0 or t_text0) begin
+//
+//	//iren = 1'b0;
+//	//ctr0_next = ctr0;
+//
+//	if((ctr0 == 1'b0)) begin
+//		if(~iempty) begin
+//			enable0 = 1'b1;
+//			i_text0 = plain_text;// ^ 128'h0f0e0d0c0b0a09080706050403020100;
+//			key0 = Rkey;
+//			ctr0_next = 1'b1;
+//			iren = 1'b1;
+//		end
+//		else begin
+//			enable0 = 1'b0;
+//			i_text0 = 128'h0;
+//			key0 = Rkey;
+//			ctr0_next = ctr0;
+//			iren = 1'b0;
+//		end
+//	end
+//	else if((ctr0 == 1'b1)) begin
+//		if(done0 & ~(ofull0)) begin
+//			enable0 = 1'b0;
+//			i_text0 = t_text0;
+//			key0 = Rkey;
+//			ctr0_next = 1'b0;
+//			iren = 1'b0;
+//		end
+//		else begin
+//			enable0 = 1'b1;
+//			i_text0 = t_text0;
+//			key0 = Rkey;
+//			ctr0_next = ctr0;
+//			iren = 1'b0;
+//		end
+//	end
+//
+//end
 
 
 //Compute AES cipher for 10 rounds.
@@ -332,16 +406,17 @@ aes aes8 (.clock(clock), .resetn(resetn), .enable(enable8), .i_text(i_text8), .k
 aes aes9 (.clock(clock), .resetn(resetn), .enable(enable9), .i_text(i_text9), .key(key9), .round(4'h9), .o_text(o_text9), .Rkey(Rkey9), .done(done9));
 
 
-//`SEQ_CONNECT(clock, resetn, ctr, ctr_next, iren, enable, i_text, key, iempty, fifo_text, Rkey, done, ofull)
-`SEQ_CONNECT(clock, resetn, ctr1, ctr1_next, oren0, enable1, i_text1, key1, oempty0, from_ofifo0, Rkey0, done1, ofull1, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr2, ctr2_next, oren1, enable2, i_text2, key2, oempty1, from_ofifo1, Rkey1, done2, ofull2, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr3, ctr3_next, oren2, enable3, i_text3, key3, oempty2, from_ofifo2, Rkey2, done3, ofull3, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr4, ctr4_next, oren3, enable4, i_text4, key4, oempty3, from_ofifo3, Rkey3, done4, ofull4, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr5, ctr5_next, oren4, enable5, i_text5, key5, oempty4, from_ofifo4, Rkey4, done5, ofull5, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr6, ctr6_next, oren5, enable6, i_text6, key6, oempty5, from_ofifo5, Rkey5, done6, ofull6, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr7, ctr7_next, oren6, enable7, i_text7, key7, oempty6, from_ofifo6, Rkey6, done7, ofull7, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr8, ctr8_next, oren7, enable8, i_text8, key8, oempty7, from_ofifo7, Rkey7, done8, ofull8, Rkey)
-`SEQ_CONNECT(clock, resetn, ctr9, ctr9_next, oren8, enable9, i_text9, key9, oempty8, from_ofifo8, Rkey8, done9, ofull9, Rkey)
+//`SEQ_CONNECT(clock, resetn, ctr, ctr_next, iren, enable, i_text, key, iempty, fifo_text, Rkey, done, ofull, keyini, t_text)
+`SEQ_CONNECT(clock, resetn, ctr0, ctr0_next, iren,  enable0, i_text0, key0, iempty,  plain_text,  Rkey,  done0, ofull0, Rkey, t_text0)
+`SEQ_CONNECT(clock, resetn, ctr1, ctr1_next, oren0, enable1, i_text1, key1, oempty0, from_ofifo0, Rkey0, done1, ofull1, Rkey, t_text1)
+`SEQ_CONNECT(clock, resetn, ctr2, ctr2_next, oren1, enable2, i_text2, key2, oempty1, from_ofifo1, Rkey1, done2, ofull2, Rkey, t_text2)
+`SEQ_CONNECT(clock, resetn, ctr3, ctr3_next, oren2, enable3, i_text3, key3, oempty2, from_ofifo2, Rkey2, done3, ofull3, Rkey, t_text3)
+`SEQ_CONNECT(clock, resetn, ctr4, ctr4_next, oren3, enable4, i_text4, key4, oempty3, from_ofifo3, Rkey3, done4, ofull4, Rkey, t_text4)
+`SEQ_CONNECT(clock, resetn, ctr5, ctr5_next, oren4, enable5, i_text5, key5, oempty4, from_ofifo4, Rkey4, done5, ofull5, Rkey, t_text5)
+`SEQ_CONNECT(clock, resetn, ctr6, ctr6_next, oren5, enable6, i_text6, key6, oempty5, from_ofifo5, Rkey5, done6, ofull6, Rkey, t_text6)
+`SEQ_CONNECT(clock, resetn, ctr7, ctr7_next, oren6, enable7, i_text7, key7, oempty6, from_ofifo6, Rkey6, done7, ofull7, Rkey, t_text7)
+`SEQ_CONNECT(clock, resetn, ctr8, ctr8_next, oren7, enable8, i_text8, key8, oempty7, from_ofifo7, Rkey7, done8, ofull8, Rkey, t_text8)
+`SEQ_CONNECT(clock, resetn, ctr9, ctr9_next, oren8, enable9, i_text9, key9, oempty8, from_ofifo8, Rkey8, done9, ofull9, Rkey, t_text9)
 
 
 //STUB
@@ -391,25 +466,52 @@ end
 assign oren9 = (ocounter == 2'h3) & cipher_text_read & (~oempty9);
 assign waitrequest1 = cipher_text_read & oempty9;
 
+reg [31:0] from_reg;
 
 //Reading Out Cipher
 always @(ocounter or cipher_text_read or cipher_status_read or from_ofifo9 or oempty9) begin
-	readdata = 32'h0;
+	//from_reg = 32'h0;
 
-	if(cipher_text_read) begin
+	if(cipher_text_read & (~oempty9)) begin
 		case(ocounter)
-		2'h0 : begin readdata = from_ofifo9[127:96]; end
-		2'h1 : begin readdata = from_ofifo9[95:64]; end
-		2'h2 : begin readdata = from_ofifo9[63:32]; end
-		2'h3 : begin readdata = from_ofifo9[31:0]; end
+		2'h0 : begin from_reg = from_ofifo9[127:96]; end
+		2'h1 : begin from_reg = from_ofifo9[95:64]; end
+		2'h2 : begin from_reg = from_ofifo9[63:32]; end
+		2'h3 : begin from_reg = from_ofifo9[31:0]; end
 		endcase
 	end
-
 	else if(cipher_status_read) begin
-		readdata = {31'h0, ~oempty9};
+		from_reg = {31'h0, ~oempty9};
+	end
+	else begin
+		from_reg = 32'hF;
 	end
 
 end
+
+assign readdata = from_reg;
+
+////Reading Out Cipher
+//always @(ocounter or cipher_text_read or cipher_status_read or from_ofifo9 or oempty9) begin
+//	//readdata = 32'h0;
+//
+//	if(cipher_text_read) begin
+//		case(ocounter)
+//		2'h0 : begin readdata = from_ofifo9[127:96]; end
+//		2'h1 : begin readdata = from_ofifo9[95:64]; end
+//		2'h2 : begin readdata = from_ofifo9[63:32]; end
+//		2'h3 : begin readdata = from_ofifo9[31:0]; end
+//		endcase
+//	end
+//
+//	else if(cipher_status_read) begin
+//		readdata = {31'h0, ~oempty9};
+//	end
+//	else begin
+//		readdata = 32'h0;
+//	end
+//
+//end
 
 
 
