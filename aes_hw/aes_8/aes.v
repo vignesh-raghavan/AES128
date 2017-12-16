@@ -75,7 +75,7 @@ always @(counter or enable or shiftrows_text or key or round or t3_out or m_text
 	else if(enable & (counter == 5'h0)) begin
 		counter_next = counter + 5'h1;
 	end
-	else if((counter != 5'h13)) begin
+	else if((counter != 5'h14)) begin
 		counter_next = counter + 5'h1;
 	end
 	else begin
@@ -110,46 +110,145 @@ always @(counter or enable or shiftrows_text or key or round or t3_out or m_text
 		5'h12 : begin t3_in = key[127 : 120]; end  //8*15+7 : 8*15
 		5'h13 : begin t3_in = key[103 : 96 ]; end  //8*12+7 : 8*12
 
-	endcase
-
-
-	case(counter)
-
-		5'h0 : begin t0_out = enable ? t3_out : 32'h0;
-						 t1_out = 32'h0;
-						 t2_out = 32'h0;
-						 mixcolumns_text = 128'h0;
-						 tkey = 32'h0;
-			    end
-		5'h1 : begin t1_out = t3_out; end
-		5'h2 : begin t2_out = t3_out; end
-		5'h3 : begin mixcolumns_text[31:0] = m_text; end
-		
-		5'h4 : begin t0_out = t3_out; end
-		5'h5 : begin t1_out = t3_out; end
-		5'h6 : begin t2_out = t3_out; end
-		5'h7 : begin mixcolumns_text[63:32] = m_text; end
-
-		5'h8 : begin t0_out = t3_out; end
-		5'h9 : begin t1_out = t3_out; end
-		5'hA : begin t2_out = t3_out; end
-		5'hB : begin mixcolumns_text[95:64] = m_text; end
-
-		5'hC : begin t0_out = t3_out; end
-		5'hD : begin t1_out = t3_out; end
-		5'hE : begin t2_out = t3_out; end
-		5'hF : begin mixcolumns_text[127:96] = m_text; end
-		
-		5'h10 : begin tkey[7 : 0]   = t3_out[15:8] ^ key[7 : 0] ^ Rcon[round]; end  //8*13+7 : 8*13
-		5'h11 : begin tkey[15 : 8]  = t3_out[15:8] ^ key[15 : 8];  end  //8*14+7 : 8*14
-		5'h12 : begin tkey[23 : 16] = t3_out[15:8] ^ key[23 : 16]; end  //8*15+7 : 8*15
-		5'h13 : begin tkey[31 : 24] = t3_out[15:8] ^ key[31 : 24]; end  //8*12+7 : 8*12
+		default : begin t3_in = 8'h0; end
 
 	endcase
+
+
+//	case(counter)
+//
+//		5'h0 : begin t0_out = enable ? t3_out : 32'h0;
+//						 t1_out = 32'h0;
+//						 t2_out = 32'h0;
+//						 mixcolumns_text = 128'h0;
+//						 tkey = 32'h0;
+//			    end
+//		5'h1 : begin t1_out = t3_out; end
+//		5'h2 : begin t2_out = t3_out; end
+//		5'h3 : begin mixcolumns_text[31:0] = m_text; end
+//		
+//		5'h4 : begin t0_out = t3_out; end
+//		5'h5 : begin t1_out = t3_out; end
+//		5'h6 : begin t2_out = t3_out; end
+//		5'h7 : begin mixcolumns_text[63:32] = m_text; end
+//
+//		5'h8 : begin t0_out = t3_out; end
+//		5'h9 : begin t1_out = t3_out; end
+//		5'hA : begin t2_out = t3_out; end
+//		5'hB : begin mixcolumns_text[95:64] = m_text; end
+//
+//		5'hC : begin t0_out = t3_out; end
+//		5'hD : begin t1_out = t3_out; end
+//		5'hE : begin t2_out = t3_out; end
+//		5'hF : begin mixcolumns_text[127:96] = m_text; end
+//		
+//		5'h10 : begin tkey[7 : 0]   = t3_out[15:8] ^ key[7 : 0] ^ Rcon[round]; end  //8*13+7 : 8*13
+//		5'h11 : begin tkey[15 : 8]  = t3_out[15:8] ^ key[15 : 8];  end  //8*14+7 : 8*14
+//		5'h12 : begin tkey[23 : 16] = t3_out[15:8] ^ key[23 : 16]; end  //8*15+7 : 8*15
+//		5'h13 : begin tkey[31 : 24] = t3_out[15:8] ^ key[31 : 24]; end  //8*12+7 : 8*12
+//
+//		default : begin t0_out = 32'h0;
+//							 t1_out = 32'h0;
+//							 t2_out = 32'h0;
+//							 t3_out = 32'h0;
+//							 mixcolumns_text = 128'h0;
+//							 tkey = 32'h0;
+//					 end
+//
+//	endcase
 
 end
 
+always @(posedge clock) begin
+	if(!resetn) begin
+		t0_out <= 32'h0;
+	end
+	else if((counter == 5'h0) & enable) begin
+		t0_out <= t3_out;
+	end
+	else if((counter == 5'h4)) begin
+		t0_out <= t3_out;
+	end
+	else if((counter == 5'h8)) begin
+		t0_out <= t3_out;
+	end
+	else if((counter == 5'hC)) begin
+		t0_out <= t3_out;
+	end
+end
 
+
+always @(posedge clock) begin
+	if(!resetn) begin
+		t1_out <= 32'h0;
+	end
+	else if((counter == 5'h1)) begin
+		t1_out <= t3_out;
+	end
+	else if((counter == 5'h5)) begin
+		t1_out <= t3_out;
+	end
+	else if((counter == 5'h9)) begin
+		t1_out <= t3_out;
+	end
+	else if((counter == 5'hD)) begin
+		t1_out <= t3_out;
+	end
+end
+
+always @(posedge clock) begin
+	if(!resetn) begin
+		t2_out <= 32'h0;
+	end
+	else if((counter == 5'h2)) begin
+		t2_out <= t3_out;
+	end
+	else if((counter == 5'h6)) begin
+		t2_out <= t3_out;
+	end
+	else if((counter == 5'hA)) begin
+		t2_out <= t3_out;
+	end
+	else if((counter == 5'hE)) begin
+		t2_out <= t3_out;
+	end
+end
+
+always @(posedge clock) begin
+	if(!resetn) begin
+		mixcolumns_text <= 128'h0;
+	end
+	else if((counter == 5'h3)) begin
+		mixcolumns_text <= {m_text, mixcolumns_text[127:32]};
+	end
+	else if((counter == 5'h7)) begin
+		mixcolumns_text <= {m_text, mixcolumns_text[127:32]};
+	end
+	else if((counter == 5'hB)) begin
+		mixcolumns_text <= {m_text, mixcolumns_text[127:32]};
+	end
+	else if((counter == 5'hF)) begin
+		mixcolumns_text <= {m_text, mixcolumns_text[127:32]};
+	end
+end
+
+always @(posedge clock) begin
+	if(!resetn) begin
+		tkey <= 32'h0;
+	end
+	else if((counter == 5'h10)) begin
+		tkey <= {t3_out[15:8] ^ key[7 : 0] ^ Rcon[round], tkey[31:8]};
+	end
+	else if((counter == 5'h11)) begin
+		tkey <= {t3_out[15:8] ^ key[15 : 8], tkey[31:8]};
+	end
+	else if((counter == 5'h12)) begin
+		tkey <= {t3_out[15:8] ^ key[23 : 16], tkey[31:8]};
+	end
+	else if((counter == 5'h13)) begin
+		tkey <= {t3_out[15:8] ^ key[31 : 24], tkey[31:8]};
+	end
+end
 
 assign m_text = (round == 4'h9) ? {t3_out[15:8], t2_out[15:8], t1_out[15:8], t0_out[15:8]} : t0_out ^ {t1_out[23:0], t1_out[31:24]} ^ {t2_out[15:0], t2_out[31:16]} ^ {t3_out[7:0], t3_out[31:8]};
 
@@ -166,7 +265,7 @@ tbox0 T3 (.index(t3_in), .tbox(t3_out));
 
 
 
-assign done = (counter == 5'h13) ? 1'b1 : 1'b0;
+assign done = (counter == 5'h14) ? 1'b1 : 1'b0;
 
 always @(posedge clock) begin
 	if(!resetn) begin
